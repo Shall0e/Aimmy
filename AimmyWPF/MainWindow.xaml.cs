@@ -23,7 +23,6 @@ namespace AimmyWPF
 {
     public partial class MainWindow : Window
     {
-        private PredictionManager predictionManager;
         private OverlayWindow FOVOverlay;
         private PlayerDetectionWindow DetectedPlayerOverlay;
         private FileSystemWatcher fileWatcher;
@@ -48,6 +47,11 @@ namespace AimmyWPF
         private InputBindingManager bindingManager;
         private bool IsHolding_Binding = false;
         private CancellationTokenSource cts;
+
+        // For Shall0e's Prediction Method
+        private PredictionManager PredManager = new();
+        private int PrevX = 0;
+        private int PrevY = 0;
 
         private enum MenuPosition
         {
@@ -157,9 +161,6 @@ namespace AimmyWPF
             ReloadMenu();
             InitializeFileWatcher();
             InitializeConfigWatcher();
-
-            // Load PredictionManager
-            predictionManager = new PredictionManager();
 
             // Load all models into listbox
             LoadModelsIntoListBox();
@@ -300,6 +301,7 @@ namespace AimmyWPF
         public async Task ModelCapture(bool TriggerOnly = false)
         {
             var closestPrediction = await _onnxModel.GetClosestPredictionToCenterAsync();
+
             if (closestPrediction == null)
             {
                 return;
@@ -318,23 +320,17 @@ namespace AimmyWPF
             int detectedX = (int)((closestPrediction.Rectangle.X + closestPrediction.Rectangle.Width / 2) * scaleX + XOffset);
             int detectedY = (int)((closestPrediction.Rectangle.Y + closestPrediction.Rectangle.Height / 2) * scaleY + YOffset);
 
+            PredManager.GetShalloePredictionX(detectedX, PrevX, (int)closestPrediction.Rectangle.Width, (int)closestPrediction.Rectangle.Height);
+            PredManager.GetShalloePredictionY(detectedX, PrevX, (int)closestPrediction.Rectangle.Width, (int)closestPrediction.Rectangle.Height);
+
             Console.WriteLine(AIModel.AIConfidence.ToString());
 
             // Handle Prediction
             if (toggleState["PredictionToggle"])
             {
-                Detection detection = new()
-                {
-                    X = detectedX,
-                    Y = detectedY,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                predictionManager.UpdateKalmanFilter(detection);
-                var predictedPosition = predictionManager.GetEstimatedPosition();
 
                 if ((Bools.AimOnlyWhenBindingHeld && IsHolding_Binding) || Bools.AimOnlyWhenBindingHeld == false)
-                    MoveCrosshair(predictedPosition.X, predictedPosition.Y);
+                    MoveCrosshair(PredManager.PredX, PredManager.PredX);
                 //MoveCrosshair(predictedPosition.X, predictedPosition.Y);
 
                 if (Bools.ShowDetectedPlayerWindow && Bools.ShowPrediction)
@@ -342,11 +338,14 @@ namespace AimmyWPF
                     this.Dispatcher.Invoke(() =>
                     {
                         DetectedPlayerOverlay.PredictionFocus.Margin = new Thickness(
-                            predictedPosition.X - (OverlayProperties["PDW_Size"] / (OverlayProperties["PDW_Size"] / 2)),
-                            predictedPosition.Y - (OverlayProperties["PDW_Size"] / (OverlayProperties["PDW_Size"] / 2)),
+                            PredManager.PredX - (OverlayProperties["PDW_Size"] / (OverlayProperties["PDW_Size"] / 2)),
+                            PredManager.PredY - (OverlayProperties["PDW_Size"] / (OverlayProperties["PDW_Size"] / 2)),
                             0, 0);
                     });
                 }
+
+                PrevX = detectedX;
+                PrevY = detectedX;
             }
             else
             {

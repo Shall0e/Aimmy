@@ -5,48 +5,35 @@ namespace AimmyWPF
 {
     internal class PredictionManager
     {
-        public struct Detection
+        public int PredX = 0;
+        public int PredY = 0;
+
+        public void GetShalloePredictionX(int CurrentX, int PrevX, int EnemyWidth, int EnemyHeight)
         {
-            public int X;
-            public int Y;
-            public DateTime Timestamp;
+
+            var xVelocity = CurrentX - PrevX;
+            var EnemySize = EnemyWidth * EnemyHeight;
+            //var ScreenResolution = WinAPICaller.ScreenWidth * WinAPICaller.ScreenHeight;
+            var ScreenResolution = 640 * 640;
+            var EnemyDistance = (1 - (EnemySize / ScreenResolution));
+
+            var BulletSpeed = 10;
+
+            PredX = System.Windows.Forms.Cursor.Position.X + (xVelocity * (EnemyDistance * BulletSpeed));
         }
 
-        private KalmanFilter2D kalmanFilter;
-        private DateTime lastUpdateTime;
-
-        public PredictionManager()
+        public void GetShalloePredictionY(int CurrentY, int PrevY, int EnemyWidth, int EnemyHeight)
         {
-            kalmanFilter = new KalmanFilter2D();
-            lastUpdateTime = DateTime.UtcNow;
-        }
 
-        public void UpdateKalmanFilter(Detection detection)
-        {
-            var currentTime = DateTime.UtcNow;
+            var yVelocity = CurrentY - PrevY;
+            var EnemySize = EnemyWidth * EnemyHeight;
+            //var ScreenResolution = WinAPICaller.ScreenWidth * WinAPICaller.ScreenHeight;
+            var ScreenResolution = 640 * 640;
+            var EnemyDistance = (1 - (EnemySize / ScreenResolution));
 
-            kalmanFilter.Push(detection.X, detection.Y);
-            lastUpdateTime = currentTime;
-        }
+            var BulletSpeed = 1;
 
-        public Detection GetEstimatedPosition()
-        {
-            // Current estimated position
-            double currentX = kalmanFilter.X;
-            double currentY = kalmanFilter.Y;
-
-            // Current velocity
-            double velocityX = kalmanFilter.XAxisVelocity;
-            double velocityY = kalmanFilter.YAxisVelocity;
-
-            // Calculate time since last update
-            double timeStep = (DateTime.UtcNow - lastUpdateTime).TotalSeconds;
-
-            // Predict next position based on current position and velocity
-            double predictedX = currentX + velocityX * timeStep;
-            double predictedY = currentY + velocityY * timeStep;
-
-            return new Detection { X = (int)predictedX, Y = (int)predictedY };
+            PredY = System.Windows.Forms.Cursor.Position.Y + (yVelocity * (EnemyDistance * BulletSpeed));
         }
     }
 }
